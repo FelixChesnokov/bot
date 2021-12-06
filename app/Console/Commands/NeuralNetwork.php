@@ -137,3 +137,6 @@ class NeuralNetwork extends Command
         return Candle::whereBetween('id', [$from, $to])->get()->pluck('open')->toArray();
     }
 }
+
+
+// https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m
