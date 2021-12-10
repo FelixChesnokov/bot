@@ -3,12 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\Candle;
-use Phpml\Classification\SVC;
-use Phpml\SupportVectorMachine\Kernel;
+use GuzzleHttp\Client;
 use Illuminate\Console\Command;
-use Phpml\Classification\KNearestNeighbors;
-use Phpml\Regression\LeastSquares;
-use Phpml\Regression\SVR;
 
 class Macd extends Command
 {
@@ -43,12 +39,22 @@ class Macd extends Command
      */
     public function handle()
     {
+        $client = new Client();
+        $res = $client->request('GET', 'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m');
 
+        $candles = json_decode($res->getBody());
+
+        $context = '';
+        foreach ($candles as $candle) {
+            $context .= $candle[4] . "\n";
+        }
+
+        file_put_contents('closePrices', $context);
     }
 
     private function getCandles($from, $to)
     {
-        // https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m
+        // https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m
         return Candle::whereBetween('id', [$from, $to])->get()->pluck('open')->toArray();
     }
 }
