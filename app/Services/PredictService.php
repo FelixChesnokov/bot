@@ -3,11 +3,10 @@
 namespace App\Services;
 
 use Phpml\Regression\SVR;
-use Phpml\SupportVectorMachine\Kernel;
 
 class PredictService
 {
-    public function predictMacd($array, $predictCount)
+    public function predict($array, $predictCount, $predictType)
     {
         $i = 0;
 
@@ -24,10 +23,10 @@ class PredictService
                 $step++;
             }
 
-            $regression = new SVR(Kernel::POLYNOMIAL);
+            $regression = new SVR($predictType);
             $regression->train($samples, $targets);
 
-            $predictedValue = $regression->predict(array_slice($array, 10, $educateLength));
+            $predictedValue = (float)$regression->predict(array_slice($array, 10, $educateLength));
 
             array_push($array, $predictedValue);
             $i++;
