@@ -50,14 +50,25 @@ class BinanceService
     }
 
     /**
+     * Get candle timestamps
+     *
+     * @return array
+     */
+    public function getTimestamps() : array
+    {
+        return array_column($this->candles, '6');
+    }
+
+    /**
      * Get penultimate
      *
      * @param array $array
+     * @param int $howMuch
      * @return mixed
      */
-    public function getPenultimate(array $array)
+    public function getPenultimate(array $array, int $howMuch = -2)
     {
-        return array_slice($array, -2, 1)[0];
+        return array_slice($array, $howMuch, 1)[0];
     }
 
     /**

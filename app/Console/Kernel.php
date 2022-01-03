@@ -3,9 +3,10 @@
 namespace App\Console;
 
 use App\Console\Commands\ImportCsvData;
-use App\Console\Commands\Macd;
-use App\Console\Commands\NeuralNetwork;
-use App\Console\Commands\TradingCommand;
+use App\Console\Commands\BasicBot\TradingCommand1 as BasicBotTradingCommand1;
+use App\Console\Commands\SaveBasicBot\TradingCommand1 as SaveBasicBotTradingCommand1;
+use App\Console\Commands\Optimized\TradingCommand1 as OptimizedBotTradingCommand1;
+use App\Console\Commands\TradingCommandExample;
 use Illuminate\Console\Scheduling\Schedule;
 use Laravel\Lumen\Console\Kernel as ConsoleKernel;
 
@@ -18,9 +19,18 @@ class Kernel extends ConsoleKernel
      */
     protected $commands = [
         ImportCsvData::class,
-        NeuralNetwork::class,
-        Macd::class,
-        TradingCommand::class,
+        TradingCommandExample::class,
+
+        // BasicBot
+        BasicBotTradingCommand1::class,
+
+        // SaveBasicBot
+        SaveBasicBotTradingCommand1::class,
+
+        // OptimizedBot
+        OptimizedBotTradingCommand1::class,
+
+
     ];
 
     /**

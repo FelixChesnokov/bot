@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\SaveBasicBot;
 
 use App\Services\BinanceService;
 use App\Services\TelegramService;
@@ -8,23 +8,23 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 use LupeCode\phpTraderNative\Trader;
 
-class TradingCommand extends Command
+class TradingCommand1 extends Command
 {
     private $period = '1m';
     private $symbol = 'BTCUSDT';
-    private $filename = 'trading_command_results';
+    private $filename = 'trading_save_basic_1_command_results';
 
     private $rsiPeriod = 6;
-    private $rsiTop = 70;
-    private $rsiBottom = 30;
+    private $rsiTop = 80;
+    private $rsiBottom = 20;
 
     private $bbandsPeriod = 21;
 
-    private $buyValue = 0.25;
+    private $buyValue = 0.2;
     private $money = 100;
 
 
-    protected $signature = 'trading';
+    protected $signature = 'trading_save_basic_1';
 
     protected $description = 'Start trading';
 
@@ -55,24 +55,46 @@ class TradingCommand extends Command
             $openPrices = $binanceService->getOpenPrices();
             $closePrices = $binanceService->getClosePrices();
 
+
+
+            // get last open close prices
+            $penultimateCandleOpen = $binanceService->getPenultimate($openPrices, -3);
+            $penultimateCandleClose = $binanceService->getPenultimate($closePrices, -3);
+
             // get last open close prices
             $lastCandleOpen = $binanceService->getPenultimate($openPrices);
             $lastCandleClose = $binanceService->getPenultimate($closePrices);
+
+
+
 
             // build indicators
             $rsi = Trader::rsi($closePrices, $this->rsiPeriod);
             $bbands = Trader::bbands($closePrices, $this->bbandsPeriod);
 
             // get penultimate value of indicators
+            $penultimateBbands = [
+                'UpperBand' => $binanceService->getPenultimate($bbands['UpperBand'], -3),
+                'LowerBand' => $binanceService->getPenultimate($bbands['LowerBand'], -3),
+            ];
+
             $lastRsi = $binanceService->getPenultimate($rsi);
             $lastBbands = [
                 'UpperBand' => $binanceService->getPenultimate($bbands['UpperBand']),
                 'LowerBand' => $binanceService->getPenultimate($bbands['LowerBand']),
             ];
 
+
+
+            // get levels of last closed candles
+            $penultimateCandleTopLine = max($penultimateCandleOpen, $penultimateCandleClose);
+            $penultimateCandleBottomLine = min($penultimateCandleOpen, $penultimateCandleClose);
+
             // get levels of last closed candles
             $candleTopLine = max($lastCandleOpen, $lastCandleClose);
             $candleBottomLine = min($lastCandleOpen, $lastCandleClose);
+
+
 
             // get last price
             $price = end($closePrices);
@@ -80,23 +102,38 @@ class TradingCommand extends Command
             // check liquidation
             $this->checkLiquidation($buyPrices, $buyCount, $price);
 
+            // check last buy time
+            $candleTimestamps = $binanceService->getTimestamps();
+            if($lastBuyTime && $lastBuyTime == $binanceService->getPenultimate($candleTimestamps, -3)) {
+                $lastBuyTime = null;
+            }
+
+
 
             /**
              * MAIN BOT LOGIC START
              */
             // buy
-            if($lastRsi <= $this->rsiBottom && $lastBbands['LowerBand'] >= $candleBottomLine) {
-                $buyResult = $binanceService->buy($money, $coins, $price, $this->money*$this->buyValue);
-                $money = $buyResult['money'];
-                $coins = $buyResult['coins'];
-                $buyCount++;
-                $buyPrices[] = $price;
+            $waitForBuy = $penultimateBbands['LowerBand'] >= $penultimateCandleBottomLine;
 
-                $status = $this->sendStatus($buyResult['status'], $money, $coins);
+            if($lastRsi <= $this->rsiBottom && $lastBbands['LowerBand'] <= $candleBottomLine && $waitForBuy) {
+                if($lastBuyTime == null) {
+                    $buyResult = $binanceService->buy($money, $coins, $price, $this->money*$this->buyValue);
+                    $money = $buyResult['money'];
+                    $coins = $buyResult['coins'];
+                    $buyCount++;
+                    $buyPrices[] = $price;
+                    $lastBuyTime = end($candleTimestamps);
+
+                    $status = $this->sendStatus($buyResult['status'], $money, $coins);
+                }
+
             }
 
             //sell
-            if($lastRsi >= $this->rsiTop && $lastBbands['UpperBand'] <= $candleTopLine) {
+            $waitForSell = $penultimateBbands['UpperBand'] <= $penultimateCandleTopLine;
+
+            if($lastRsi >= $this->rsiTop && $lastBbands['UpperBand'] >= $candleTopLine && $waitForSell) {
                 if($coins > 0) {
                     $buyResult = $binanceService->sell($money, $coins, $price, $buyCount);
                     $money = $buyResult['money'];
@@ -143,7 +180,7 @@ class TradingCommand extends Command
             'time' => Carbon::now()->timestamp,
             'type' => $statusType
         ];
-        $text = 'Time: ' . $status['time'] . "\nType: " . $status['type'] . "\nMoney: " . $money . "\nCoins: " . $coins . ' ' . $this->symbol;
+        $text = '('.$this->filename.')Time: ' . $status['time'] . "\nType: " . $status['type'] . "\nMoney: " . $money . "\nCoins: " . $coins . ' ' . $this->symbol;
         TelegramService::sendMessage($this->period, $text);
 
         return $status;
