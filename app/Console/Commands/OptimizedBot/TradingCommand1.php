@@ -43,6 +43,7 @@ class TradingCommand1 extends Command
         $buyCount = 0;
         $coins = 0;
         $buyPrices = [];
+        $lastBuyTime = null;
 
         while (true) {
             $t1 = Carbon::now();
