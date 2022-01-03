@@ -1,6 +1,6 @@
 <?php
 
-    namespace App\Console\Commands\Optimized;
+    namespace App\Console\Commands\OptimizedBot;
 
 use App\Services\BinanceService;
 use App\Services\TelegramService;
@@ -24,7 +24,7 @@ class TradingCommand1 extends Command
     private $money = 100;
 
 
-    protected $signature = 'trading_save_basic_1';
+    protected $signature = 'trading_optimized_1';
 
     protected $description = 'Start trading';
 
@@ -35,6 +35,8 @@ class TradingCommand1 extends Command
 
     public function handle()
     {
+        \Log::info('trading_optimized_1');
+
         $status = [
             'time' => null,
             'type' => null

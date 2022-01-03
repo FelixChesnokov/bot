@@ -35,6 +35,8 @@ class TradingCommand1 extends Command
 
     public function handle()
     {
+        \Log::info('trading_basic_1');
+
         $status = [
             'time' => null,
             'type' => null

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Commands\SaveBasicBot;
+    namespace App\Console\Commands\DynamicBot;
 
 use App\Services\BinanceService;
 use App\Services\TelegramService;
@@ -12,11 +12,11 @@ class TradingCommand1 extends Command
 {
     private $period = '1m';
     private $symbol = 'BTCUSDT';
-    private $filename = 'trading_save_basic_1_command_results';
+    private $filename = 'trading_dynamic_1_command_results';
 
     private $rsiPeriod = 6;
-    private $rsiTop = 80;
-    private $rsiBottom = 20;
+    private $rsiTop = 70;
+    private $rsiBottom = 30;
 
     private $bbandsPeriod = 21;
 
@@ -24,7 +24,7 @@ class TradingCommand1 extends Command
     private $money = 100;
 
 
-    protected $signature = 'trading_save_basic_1';
+    protected $signature = 'trading_dynamic_1';
 
     protected $description = 'Start trading';
 
@@ -35,7 +35,7 @@ class TradingCommand1 extends Command
 
     public function handle()
     {
-        \Log::info('trading_save_basic_1');
+        \Log::info('trading_dynamic_1');
 
         $status = [
             'time' => null,
@@ -58,7 +58,16 @@ class TradingCommand1 extends Command
             $openPrices = $binanceService->getOpenPrices();
             $closePrices = $binanceService->getClosePrices();
 
+            // check trend and choose RSI params
+            $isGrowthTrend = $this->checkTrend($closePrices);
 
+            if($isGrowthTrend) {
+                $this->rsiTop = 80;
+                $this->rsiBottom = 40;
+            } else {
+                $this->rsiTop = 60;
+                $this->rsiBottom = 20;
+            }
 
             // get last open close prices
             $penultimateCandleOpen = $binanceService->getPenultimate($openPrices, -3);
@@ -130,7 +139,6 @@ class TradingCommand1 extends Command
 
                     $status = $this->sendStatus($buyResult['status'], $money, $coins);
                 }
-
             }
 
             //sell
@@ -227,5 +235,19 @@ class TradingCommand1 extends Command
                 }
             }
         }
+    }
+
+    /**
+     * Check if trend is growing
+     *
+     * @param array $closePrices
+     * @return bool
+     */
+    public function checkTrend(array $closePrices) : bool
+    {
+        $lastClosePrices = array_slice($closePrices, -200, 200);
+        $ma = Trader::ma($lastClosePrices, 50);
+
+        return  array_slice($ma, 0, 1)[0] < end($ma);
     }
 }
