@@ -117,9 +117,9 @@ class TradingCommand1 extends Command
              * MAIN BOT LOGIC START
              */
             // buy
-            $waitForBuy = $penultimateBbands['LowerBand'] >= $penultimateCandleBottomLine;
+            $waitForBuy = $penultimateBbands['LowerBand'] >= $penultimateCandleBottomLine && $lastCandleClose <= $lastCandleOpen;
 
-            if($lastRsi <= $this->rsiBottom && $lastBbands['LowerBand'] <= $candleBottomLine && $waitForBuy) {
+            if($lastRsi <= $this->rsiBottom && $lastBbands['LowerBand'] <= $candleTopLine && $lastCandleClose >= $lastCandleOpen && $waitForBuy) {
                 if($lastBuyTime == null) {
                     $buyResult = $binanceService->buy($money, $coins, $price, $this->money*$this->buyValue);
                     $money = $buyResult['money'];
@@ -133,9 +133,9 @@ class TradingCommand1 extends Command
             }
 
             //sell
-            $waitForSell = $penultimateBbands['UpperBand'] <= $penultimateCandleTopLine;
+            $waitForSell = $penultimateBbands['UpperBand'] <= $penultimateCandleTopLine && $lastCandleClose >= $lastCandleOpen;
 
-            if($lastRsi >= $this->rsiTop && $lastBbands['UpperBand'] >= $candleTopLine && $waitForSell) {
+            if($lastRsi >= $this->rsiTop && $lastBbands['UpperBand'] >= $candleBottomLine && $lastCandleClose <= $lastCandleOpen && $waitForSell) {
                 if($coins > 0) {
                     $buyResult = $binanceService->sell($money, $coins, $price, $buyCount);
                     $money = $buyResult['money'];
