@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Commands\SaveBasicBot;
+namespace App\Console\Commands\DynamicBollingerBot;
 
 use App\Services\BinanceService;
 use App\Services\TelegramService;
@@ -12,19 +12,19 @@ class TradingCommand1 extends Command
 {
     private $period = '1m';
     private $symbol = 'BTCUSDT';
-    private $filename = 'trading_save_basic_1_command_results';
+    private $filename = 'trading_dynamic_bollinger_1_command_results';
 
     private $rsiPeriod = 6;
-    private $rsiTop = 80;
-    private $rsiBottom = 20;
+    private $rsiTop = 70;
+    private $rsiBottom = 30;
 
     private $bbandsPeriod = 21;
 
-    private $buyValue = 0.2;
+    private $buyValue = 0.1;
     private $money = 100;
 
 
-    protected $signature = 'trading_save_basic_1';
+    protected $signature = 'trading_dynamic_bollinger_1';
 
     protected $description = 'Start trading';
 
@@ -35,8 +35,6 @@ class TradingCommand1 extends Command
 
     public function handle()
     {
-        \Log::info('trading_save_basic_1');
-
         $status = [
             'time' => null,
             'type' => null
@@ -77,11 +75,11 @@ class TradingCommand1 extends Command
 
             // get penultimate value of indicators
             $penultimateBbands = [
-                'UpperBand' => $binanceService->getPenultimate($bbands['UpperBand'], -3),
+                'UpperBand' => $binanceService->getPenultimate($bbands['UpperBand'], -3)*0.998,
                 'LowerBand' => $binanceService->getPenultimate($bbands['LowerBand'], -3),
             ];
 
-            $penultimateRsi = $binanceService->getPenultimate($rsi, -3);
+            $penultimateRsi = $binanceService->getPenultimate($rsi);
             $lastBbands = [
                 'UpperBand' => $binanceService->getPenultimate($bbands['UpperBand']),
                 'LowerBand' => $binanceService->getPenultimate($bbands['LowerBand']),
@@ -121,16 +119,16 @@ class TradingCommand1 extends Command
 
             if($penultimateRsi <= $this->rsiBottom && $lastBbands['LowerBand'] <= $candleTopLine && $lastCandleClose >= $lastCandleOpen && $waitForBuy) {
                 if($lastBuyTime == null) {
-                    $buyResult = $binanceService->buy($money, $coins, $price, $this->money*$this->buyValue);
+                    $buyCount++;
+                    $currentBuyValue = min($money - 1, $this->money * $this->buyValue * $buyCount);
+                    $buyResult = $binanceService->buy($money, $coins, $price, $currentBuyValue);
                     $money = $buyResult['money'];
                     $coins = $buyResult['coins'];
-                    $buyCount++;
                     $buyPrices[] = $price;
                     $lastBuyTime = end($candleTimestamps);
 
                     $status = $this->sendStatus($buyResult['status'], $money, $coins);
                 }
-
             }
 
             //sell
@@ -152,7 +150,7 @@ class TradingCommand1 extends Command
 
 
             // update money
-            $this->money = $money;
+//            $this->money = $money;
 
             // save data to the file
             if($status['time']) {
@@ -220,9 +218,6 @@ class TradingCommand1 extends Command
                         break;
                     case $diffPercentage < 96.67 || $diffPercentage > 103.33:
                         $this->sendStatus('Liquidation x30 (' . $diffPercentage . ') period: ' . $this->period, 0, 0);
-                        break;
-                    case $diffPercentage < 98 || $diffPercentage > 102:
-                        $this->sendStatus('Liquidation x50 (' . $diffPercentage . ') period: ' . $this->period, 0, 0);
                         break;
                 }
             }

@@ -90,7 +90,7 @@ class TradingCommand1 extends Command
                 'LowerBand' => $binanceService->getPenultimate($bbands['LowerBand'], -3),
             ];
 
-            $lastRsi = $binanceService->getPenultimate($rsi);
+            $penultimateRsi = $binanceService->getPenultimate($rsi);
             $lastBbands = [
                 'UpperBand' => $binanceService->getPenultimate($bbands['UpperBand']),
                 'LowerBand' => $binanceService->getPenultimate($bbands['LowerBand']),
@@ -126,9 +126,9 @@ class TradingCommand1 extends Command
              * MAIN BOT LOGIC START
              */
             // buy
-            $waitForBuy = $penultimateBbands['LowerBand'] >= $penultimateCandleBottomLine && $lastCandleClose <= $lastCandleOpen;
+            $waitForBuy = $penultimateBbands['LowerBand'] >= $penultimateCandleBottomLine && $penultimateCandleClose <= $penultimateCandleOpen;
 
-            if($lastRsi <= $this->rsiBottom && $lastBbands['LowerBand'] <= $candleTopLine && $lastCandleClose >= $lastCandleOpen && $waitForBuy) {
+            if($penultimateRsi <= $this->rsiBottom && $lastBbands['LowerBand'] <= $candleTopLine && $lastCandleClose >= $lastCandleOpen && $waitForBuy) {
                 if($lastBuyTime == null) {
                     $buyResult = $binanceService->buy($money, $coins, $price, $this->money*$this->buyValue);
                     $money = $buyResult['money'];
@@ -142,9 +142,9 @@ class TradingCommand1 extends Command
             }
 
             //sell
-            $waitForSell = $penultimateBbands['UpperBand'] <= $penultimateCandleTopLine && $lastCandleClose >= $lastCandleOpen;
+            $waitForSell = $penultimateBbands['UpperBand'] <= $penultimateCandleTopLine && $penultimateCandleClose >= $penultimateCandleOpen;
 
-            if($lastRsi >= $this->rsiTop && $lastBbands['UpperBand'] >= $candleBottomLine && $lastCandleClose <= $lastCandleOpen && $waitForSell) {
+            if($penultimateRsi >= $this->rsiTop && $lastBbands['UpperBand'] >= $candleBottomLine && $lastCandleClose <= $lastCandleOpen && $waitForSell) {
                 if($coins > 0) {
                     $buyResult = $binanceService->sell($money, $coins, $price, $buyCount);
                     $money = $buyResult['money'];
@@ -245,7 +245,7 @@ class TradingCommand1 extends Command
      */
     public function checkTrend(array $closePrices) : bool
     {
-        $lastClosePrices = array_slice($closePrices, -200, 200);
+        $lastClosePrices = array_slice($closePrices, -100, 100);
         $ma = Trader::ma($lastClosePrices, 50);
 
         return  array_slice($ma, 0, 1)[0] < end($ma);

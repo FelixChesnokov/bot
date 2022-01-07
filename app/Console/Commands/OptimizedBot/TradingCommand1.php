@@ -20,7 +20,7 @@ class TradingCommand1 extends Command
 
     private $bbandsPeriod = 21;
 
-    private $buyValue = 0.2;
+    private $buyValue = 0.1;
     private $money = 100;
 
 
@@ -48,6 +48,7 @@ class TradingCommand1 extends Command
         $lastBuyTime = null;
 
         while (true) {
+            \Log::info('trading_optimized_1', [Carbon::now()]);
             $t1 = Carbon::now();
 
             // get candles
@@ -57,7 +58,6 @@ class TradingCommand1 extends Command
             // get open close prices
             $openPrices = $binanceService->getOpenPrices();
             $closePrices = $binanceService->getClosePrices();
-
 
 
             // get last open close prices
@@ -70,18 +70,17 @@ class TradingCommand1 extends Command
 
 
 
-
             // build indicators
             $rsi = Trader::rsi($closePrices, $this->rsiPeriod);
             $bbands = Trader::bbands($closePrices, $this->bbandsPeriod);
 
             // get penultimate value of indicators
+            $penultimateRsi = $binanceService->getPenultimate($rsi, -3);
             $penultimateBbands = [
                 'UpperBand' => $binanceService->getPenultimate($bbands['UpperBand'], -3),
                 'LowerBand' => $binanceService->getPenultimate($bbands['LowerBand'], -3),
             ];
 
-            $lastRsi = $binanceService->getPenultimate($rsi);
             $lastBbands = [
                 'UpperBand' => $binanceService->getPenultimate($bbands['UpperBand']),
                 'LowerBand' => $binanceService->getPenultimate($bbands['LowerBand']),
@@ -117,14 +116,25 @@ class TradingCommand1 extends Command
              * MAIN BOT LOGIC START
              */
             // buy
-            $waitForBuy = $penultimateBbands['LowerBand'] >= $penultimateCandleBottomLine && $lastCandleClose <= $lastCandleOpen;
+            $waitForBuy = $penultimateBbands['LowerBand'] >= $penultimateCandleBottomLine;
 
-            if($lastRsi <= $this->rsiBottom && $lastBbands['LowerBand'] <= $candleTopLine && $lastCandleClose >= $lastCandleOpen && $waitForBuy) {
+
+            \Log::info('buy', [
+                Carbon::now(),
+                $penultimateBbands['LowerBand'] >= $penultimateCandleBottomLine,
+                $penultimateRsi <= $this->rsiBottom,
+                $lastBbands['LowerBand'] <= $candleTopLine,
+                $lastCandleClose >= $lastCandleOpen
+            ]);
+
+            if($penultimateRsi <= $this->rsiBottom && $lastBbands['LowerBand'] <= $candleTopLine && $lastCandleClose >= $lastCandleOpen && $waitForBuy) {
+                $this->sendStatus('buy signal', 0, 0);
                 if($lastBuyTime == null) {
-                    $buyResult = $binanceService->buy($money, $coins, $price, $this->money*$this->buyValue);
+                    $buyCount++;
+                    $currentBuyValue = min($money - 1, $this->money * $this->buyValue * $buyCount);
+                    $buyResult = $binanceService->buy($money, $coins, $price, $currentBuyValue);
                     $money = $buyResult['money'];
                     $coins = $buyResult['coins'];
-                    $buyCount++;
                     $buyPrices[] = $price;
                     $lastBuyTime = end($candleTimestamps);
 
@@ -133,9 +143,10 @@ class TradingCommand1 extends Command
             }
 
             //sell
-            $waitForSell = $penultimateBbands['UpperBand'] <= $penultimateCandleTopLine && $lastCandleClose >= $lastCandleOpen;
+            $waitForSell = $penultimateBbands['UpperBand'] <= $penultimateCandleTopLine;
 
-            if($lastRsi >= $this->rsiTop && $lastBbands['UpperBand'] >= $candleBottomLine && $lastCandleClose <= $lastCandleOpen && $waitForSell) {
+            if($penultimateRsi >= $this->rsiTop && $lastBbands['UpperBand'] >= $candleBottomLine && $lastCandleClose <= $lastCandleOpen && $waitForSell) {
+                $this->sendStatus('sell signal', 0, 0);
                 if($coins > 0) {
                     $buyResult = $binanceService->sell($money, $coins, $price, $buyCount);
                     $money = $buyResult['money'];
@@ -151,7 +162,7 @@ class TradingCommand1 extends Command
 
 
             // update money
-            $this->money = $money;
+//            $this->money = $money;
 
             // save data to the file
             if($status['time']) {
@@ -219,9 +230,6 @@ class TradingCommand1 extends Command
                         break;
                     case $diffPercentage < 96.67 || $diffPercentage > 103.33:
                         $this->sendStatus('Liquidation x30 (' . $diffPercentage . ') period: ' . $this->period, 0, 0);
-                        break;
-                    case $diffPercentage < 98 || $diffPercentage > 102:
-                        $this->sendStatus('Liquidation x50 (' . $diffPercentage . ') period: ' . $this->period, 0, 0);
                         break;
                 }
             }

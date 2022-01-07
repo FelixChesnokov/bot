@@ -8,7 +8,10 @@ class BinanceService
 {
     public $candles;
 
-    private $tax = 0.001;
+    public $tax = 0.0004;
+
+    const LONG = 'LONG';
+    const SHORT = 'SHORT';
 
     /**
      * Get Candles from Binance
@@ -91,8 +94,8 @@ class BinanceService
             ];
         } else {
             return [
-                'money' => null,
-                'coins' => null,
+                'money' => $money,
+                'coins' => $coins,
                 'status' => 'can not bought'
             ];
         }
@@ -105,16 +108,36 @@ class BinanceService
      * @param float $coins
      * @param float $price
      * @param int $buyCount
+     * @param string $type
      * @return array
      */
-    public function sell(float $money, float $coins, float $price, int $buyCount) : array
+    public function sell(float $money, float $coins, float $price, int $buyCount, string $type) : array
     {
+//        $taxValue = $coins * $price * $this->tax * $buyCount;
+//        return [
+//            'money' =>  $money + $coins * $price - $taxValue,
+//            'coins' => 0,
+//            'buyCount' => 0,
+//            'status' => 'sell'
+//        ];
+
         $taxValue = $coins * $price * $this->tax * $buyCount;
-        return [
-            'money' =>  $money + $coins * $price - $taxValue,
-            'coins' => 0,
-            'buyCount' => 0,
-            'status' => 'sell'
-        ];
+        if($type == 'long') {
+
+            return [
+                'money' =>  $money + $coins * $price - $taxValue,
+                'coins' => 0,
+                'buyCount' => 0,
+                'status' => '[Long] Close position'
+            ];
+        } else {
+
+            return [
+                'money' =>  $money + $coins * $price - $taxValue,
+                'coins' => 0,
+                'buyCount' => 0,
+                'status' => '[Short] Close position'
+            ];
+        }
     }
 }

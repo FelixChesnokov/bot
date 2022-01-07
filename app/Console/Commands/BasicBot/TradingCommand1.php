@@ -20,8 +20,10 @@ class TradingCommand1 extends Command
 
     private $bbandsPeriod = 21;
 
-    private $buyValue = 0.2;
+    private $buyValue = 0.1;
     private $money = 100;
+
+    private $longOrShort = null;
 
 
     protected $signature = 'trading_basic_1';
@@ -93,13 +95,49 @@ class TradingCommand1 extends Command
             /**
              * MAIN BOT LOGIC START
              */
+
+            /**
+             * LONG
+             */
             // buy
             if($lastRsi <= $this->rsiBottom && $lastBbands['LowerBand'] >= $candleBottomLine) {
                 if($lastBuyTime == null) {
-                    $buyResult = $binanceService->buy($money, $coins, $price, $this->money*$this->buyValue);
+                    $buyCount++;
+                    $currentBuyValue = min($money - 1, $this->money * $this->buyValue * $buyCount);
+                    $buyResult = $binanceService->buy($money, $coins, $price, $currentBuyValue);
                     $money = $buyResult['money'];
                     $coins = $buyResult['coins'];
+                    $buyPrices[] = $price;
+                    $lastBuyTime = end($candleTimestamps);
+
+                    $status = $this->sendStatus($buyResult['status'], $money, $coins);
+                }
+            }
+
+            //sell
+            if($lastRsi >= $this->rsiTop && $lastBbands['UpperBand'] <= $candleTopLine) {
+                if($coins > 0) {
+                    $buyResult = $binanceService->sell($money, $coins, $price, $buyCount, 'long');
+                    $money = $buyResult['money'];
+                    $coins = $buyResult['coins'];
+                    $buyCount = $buyResult['buyCount'];
+
+                    $status = $this->sendStatus($buyResult['status'], $money, $coins);
+                }
+            }
+
+
+            /**
+             * SHORT
+             */
+            // buy
+            if($lastRsi <= $this->rsiBottom && $lastBbands['LowerBand'] >= $candleBottomLine) {
+                if($lastBuyTime == null) {
                     $buyCount++;
+                    $currentBuyValue = min($money - 1, $this->money * $this->buyValue * $buyCount);
+                    $buyResult = $binanceService->buy($money, $coins, $price, $currentBuyValue);
+                    $money = $buyResult['money'];
+                    $coins = $buyResult['coins'];
                     $buyPrices[] = $price;
                     $lastBuyTime = end($candleTimestamps);
 
@@ -118,13 +156,14 @@ class TradingCommand1 extends Command
                     $status = $this->sendStatus($buyResult['status'], $money, $coins);
                 }
             }
+
             /**
              * MAIN BOT LOGIC END
              */
 
 
             // update money
-            $this->money = $money;
+//            $this->money = $money;
 
             // save data to the file
             if($status['time']) {
@@ -192,9 +231,6 @@ class TradingCommand1 extends Command
                         break;
                     case $diffPercentage < 96.67 || $diffPercentage > 103.33:
                         $this->sendStatus('Liquidation x30 (' . $diffPercentage . ') period: ' . $this->period, 0, 0);
-                        break;
-                    case $diffPercentage < 98 || $diffPercentage > 102:
-                        $this->sendStatus('Liquidation x50 (' . $diffPercentage . ') period: ' . $this->period, 0, 0);
                         break;
                 }
             }
