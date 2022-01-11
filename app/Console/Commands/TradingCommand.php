@@ -1,23 +1,21 @@
 <?php
 
-namespace App\Console\Commands\BasicBot;
+namespace App\Console\Commands;
 
 use App\Services\BinanceService;
-use App\Traits\BotTrait;
+use App\Services\TelegramService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use LupeCode\phpTraderNative\Trader;
 
-class TradingCommandOne extends Command
+class TradingCommand extends Command
 {
-    use BotTrait;
-
     // binance settings
-    private $period = '1m';
+    private $period = '5m';
     private $symbol = 'BTCUSDT';
 
     //report settings
-    private $filename = 'trading_basic_1_command_results';
+    private $filename = 'trading_command_results';
 
     // indicators settings
     private $rsiPeriod = 6;
@@ -27,7 +25,9 @@ class TradingCommandOne extends Command
 
     // pocket settings
     private $buyValue = 0.1;
-    private $defaultPocketValue = 100;
+    private $buySensitivity = 0.3;
+    private $dontTouchMoney = 10;
+    private $pocketValue = 100;
     private $money = 100;
     private $coins = 0;
 
@@ -38,12 +38,10 @@ class TradingCommandOne extends Command
     private $lastBuyTime = null;
     private $longPositionOpen = null;
     private $shortPositionOpen = null;
-    private $updateUpperBbands = 1;
-    private $updateLowerBbands = 1;
 
-    protected $signature = 'trading_basic_1';
+    protected $signature = 'bot:trading';
 
-    protected $description = 'Start trading basic satting 1m';
+    protected $description = 'Start trading basic setting';
 
     public function __construct()
     {
@@ -56,22 +54,6 @@ class TradingCommandOne extends Command
 
         while (true) {
             $t1 = Carbon::now();
-
-            // check trend and update settings value
-//            $binanceService5m = new BinanceService();
-//            $binanceService5m->getCandles($this->symbol, '5m');
-//            $closePrices5m = $binanceService5m->getClosePrices();
-//            $bbands5m = array_slice(Trader::bbands($closePrices5m, $this->bbandsPeriod)['MiddleBand'], -10);
-//
-//            if ($bbands5m[0] < end($bbands5m)) {
-//                // up
-//                $this->updateUpperBbands = 1.002;
-////                $this->updateLowerBbands = 1.002;
-//            } else {
-//                // down
-//                $this->updateUpperBbands = 0.998;
-////                $this->updateLowerBbands = 0.998;
-//            }
 
             // get candles
             $this->binanceService = new BinanceService();
@@ -92,8 +74,8 @@ class TradingCommandOne extends Command
             // get penultimate value of indicators
             $lastRsi = $this->binanceService->getPenultimate($rsi);
             $lastBbands = [
-                'UpperBand' => $this->binanceService->getPenultimate($bbands['UpperBand']) * $this->updateUpperBbands,
-                'LowerBand' => $this->binanceService->getPenultimate($bbands['LowerBand']) * $this->updateLowerBbands,
+                'UpperBand' => $this->binanceService->getPenultimate($bbands['UpperBand']),
+                'LowerBand' => $this->binanceService->getPenultimate($bbands['LowerBand']),
             ];
 
             // get levels of last closed candles
@@ -145,7 +127,7 @@ class TradingCommandOne extends Command
 
             // save data to the file
             if ($this->status['time']) {
-                $this->writeToFile($price, $money, $this->coins, $this->status);
+                $this->writeToFile($price);
                 $this->status = [
                     'time' => null,
                     'type' => null
@@ -154,80 +136,92 @@ class TradingCommandOne extends Command
 
             // waiting
             $t2 = Carbon::now();
-            $wait = floor(abs(10 - $t2->diffInMilliseconds($t1) / 1000));
+            $wait = floor(abs(5 - $t2->diffInMilliseconds($t1) / 1000));
             sleep($wait);
         }
     }
 
-    private function sellAction(float $price, string $actionType) : void
+    private function sellAction(float $price, string $actionType): void
     {
-        $buyResult = $this->binanceService->sell($this->money, $this->coins, $price, count($this->buyActions), $this->buyActions, $actionType);
+        // sell action
+        $buyResult = $this->binanceService->sell($this->money, $this->coins, $price, $this->buyActions, $actionType);
+
+        // update money and coins
         $this->money = $buyResult['money'];
         $this->coins = $buyResult['coins'];
+
+        // update actions
         $this->buyActions = [];
-        if($actionType == 'Long') {
+        if ($actionType == 'Long') {
             $this->longPositionOpen = null;
         } else {
             $this->shortPositionOpen = null;
         }
 
-        $this->status = $this->sendStatus($buyResult['status'], $this->money, $this->coins);
+        // send status
+        $this->sendStatus($buyResult['status']);
     }
 
-    private function buyAction(float $price, string $actionType, float $lastCandleTimestamp) : void
+    private function buyAction(float $price, string $actionType, float $lastCandleTimestamp): void
     {
-        $currentBuyValue = min($this->money - 1, $this->money * $this->buyValue * (count($this->buyActions) + 1));
+        // choose how many spend for this action
+        $currentBuyValue = $this->calcBuyValue($price, $actionType);
 
+        // buy action
         $buyResult = $this->binanceService->buy($this->money, $this->coins, $price, $currentBuyValue, $actionType);
+
+        // update money and coins
         $this->money = $buyResult['money'];
         $this->coins = $buyResult['coins'];
+
+        // update actions
         $this->buyActions[] = [
             'price' => $price,
             'value' => $currentBuyValue,
             'coins' => $buyResult['coinsByAction']
         ];
         $this->lastBuyTime = $lastCandleTimestamp;
-        if($actionType == 'Long') {
+        if ($actionType == 'Long') {
             $this->longPositionOpen = true;
         } else {
             $this->shortPositionOpen = true;
         }
 
-        $this->status = $this->sendStatus($buyResult['status'], $this->money, $this->coins);
+        // send status
+        $this->sendStatus($buyResult['status']);
     }
 
+    public function sendStatus(string $statusType): void
+    {
+        $this->status = [
+            'time' => Carbon::now()->format('Y-m-d H:i:s'),
+            'type' => $statusType
+        ];
 
-    /**
-            $currentBuyValue = min($money - 1, $this->money * $this->buyValue * (count($this->buyActions) + 1));
+        $text = 'Time: ' . $this->status['time'] .
+            "\nType: " . $this->status['type'] .
+            "\nMoney: " . $this->money .
+            "\nCoins: " . $this->coins . ' ' . $this->symbol;
 
-            $buyResult = $this->binanceService->buy($money, $this->coins, $price, $currentBuyValue, 'Long');
-            $money = $buyResult['money'];
-            $this->coins = $buyResult['coins'];
-            $this->buyActions[] = [
-            'price' => $price,
-            'value' => $currentBuyValue,
-            'coins' => $buyResult['coinsByAction']
-            ];
-            $this->lastBuyTime = end($candleTimestamps);
-            $this->longPositionOpen = true;
+        TelegramService::sendMessage($this->period, $text);
+    }
 
-            $this->status = $this->sendStatus($buyResult['status'], $money, $this->coins);
-     */
+    public function writeToFile(float $price): void
+    {
+        $file = file_get_contents($this->filename . $this->period);
+        $file .= $this->status['time'] . ';' . $this->status['type'] . ';' . $price . ';' . $this->money . ';' . $this->coins . "\n";
+        file_put_contents($this->filename . $this->period, $file);
+    }
 
-    /**
-            $currentBuyValue = min($money - 1, $this->money * $this->buyValue * (count($this->buyActions) + 1));
-
-            $buyResult = $this->binanceService->buy($money, $this->coins, $price, $currentBuyValue, 'Short');
-            $money = $buyResult['money'];
-            $this->coins = $buyResult['coins'];
-            $this->buyActions[] = [
-            'price' => $price,
-            'value' => $currentBuyValue,
-            'coins' => $buyResult['coinsByAction']
-            ];
-            $this->lastBuyTime = end($candleTimestamps);
-            $this->shortPositionOpen = true;
-
-            $this->status = $this->sendStatus($buyResult['status'], $money, $this->coins);
-     */
+    public function calcBuyValue(float $price, string $type) : int
+    {
+        $lastBuyValue = end($this->buyActions)['price'];
+        if($type == 'Long' && $price > $lastBuyValue || $type == 'Short' && $price < $lastBuyValue) {
+            $diffInPercentage = abs(100 - $lastBuyValue * 100 / $price);
+            $buyPercentage = ceil($diffInPercentage * $this->buySensitivity) + $this->buyValue;
+            return min($this->money - $this->dontTouchMoney, $this->pocketValue * $buyPercentage);
+        } else {
+            return 0;
+        }
+    }
 }
