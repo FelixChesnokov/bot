@@ -10,9 +10,6 @@ class BinanceService
 
     public $tax = 0.0004;
 
-    const LONG = 'LONG';
-    const SHORT = 'SHORT';
-
     /**
      * Get Candles from Binance
      *
@@ -21,7 +18,7 @@ class BinanceService
      * @return array
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    public function getCandles(string $symbol, string $interval) : array
+    public function getCandles(string $symbol, string $interval): array
     {
         $client = new Client();
         $res = $client->request(
@@ -37,7 +34,7 @@ class BinanceService
      *
      * @return array
      */
-    public function getOpenPrices() : array
+    public function getOpenPrices(): array
     {
         return array_column($this->candles, '1');
     }
@@ -47,7 +44,7 @@ class BinanceService
      *
      * @return array
      */
-    public function getClosePrices() : array
+    public function getClosePrices(): array
     {
         return array_column($this->candles, '4');
     }
@@ -57,7 +54,7 @@ class BinanceService
      *
      * @return array
      */
-    public function getTimestamps() : array
+    public function getTimestamps(): array
     {
         return array_column($this->candles, '6');
     }
@@ -81,22 +78,25 @@ class BinanceService
      * @param float $coins
      * @param float $price
      * @param float $howMuchBuy
+     * @param string $type
      * @return array
      */
-    public function buy(float $money, float $coins, float $price, float $howMuchBuy) : array
+    public function buy(float $money, float $coins, float $price, float $howMuchBuy, string $type): array
     {
         $taxValue = $howMuchBuy * $this->tax;
-        if($money >= $howMuchBuy + $taxValue) {
+        if ($money >= $howMuchBuy + $taxValue) {
             return [
-                'money' =>  $money - $howMuchBuy - $taxValue,
-                'coins' => $coins + $howMuchBuy/$price,
-                'status' => 'bought'
+                'money' => $money - $howMuchBuy - $taxValue,
+                'coins' => $coins + $howMuchBuy / $price,
+                'coinsByAction' => $howMuchBuy / $price,
+                'status' => '[' . $type . '] Bought'
             ];
         } else {
             return [
                 'money' => $money,
                 'coins' => $coins,
-                'status' => 'can not bought'
+                'coinsByAction' => 0,
+                'status' => '[' . $type . '] Can not bought'
             ];
         }
     }
@@ -107,37 +107,50 @@ class BinanceService
      * @param float $money
      * @param float $coins
      * @param float $price
-     * @param int $buyCount
+     * @param array $buyActions
      * @param string $type
      * @return array
      */
-    public function sell(float $money, float $coins, float $price, int $buyCount, string $type) : array
+    public function sell(float $money, float $coins, float $price, array $buyActions, string $type): array
     {
-//        $taxValue = $coins * $price * $this->tax * $buyCount;
-//        return [
-//            'money' =>  $money + $coins * $price - $taxValue,
-//            'coins' => 0,
-//            'buyCount' => 0,
-//            'status' => 'sell'
-//        ];
+        $taxValue = $coins * $price * $this->tax * count($buyActions);
+        $value = 0;
+        $profit = 0;
 
-        $taxValue = $coins * $price * $this->tax * $buyCount;
-        if($type == 'long') {
-
-            return [
-                'money' =>  $money + $coins * $price - $taxValue,
-                'coins' => 0,
-                'buyCount' => 0,
-                'status' => '[Long] Close position'
-            ];
-        } else {
-
-            return [
-                'money' =>  $money + $coins * $price - $taxValue,
-                'coins' => 0,
-                'buyCount' => 0,
-                'status' => '[Short] Close position'
-            ];
+        foreach ($buyActions as $buyAction) {
+            $value += $buyAction['price'] * $buyAction['coins'];
+            if ($type == 'Long') {
+                $profit += (1 / $buyAction['price'] - 1 / $price) * $buyAction['value'];
+            } else {
+                $profit += (1 / $buyAction['price'] - 1 / $price) * $buyAction['value'] * (-1);
+            }
         }
+
+        return [
+            'money' => $money + $value + $profit*$price - $taxValue,
+            'coins' => 0,
+            'buyCount' => 0,
+            'status' => '[' . $type . '] Close position'
+        ];
+    }
+
+    public function openPosition()
+    {
+
+    }
+
+    public function closePosition()
+    {
+
+    }
+
+    public function getCurrentPrice()
+    {
+
+    }
+
+    public function getPocketValue()
+    {
+
     }
 }

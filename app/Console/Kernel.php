@@ -3,7 +3,8 @@
 namespace App\Console;
 
 use App\Console\Commands\ImportCsvData;
-use App\Console\Commands\BasicBot\TradingCommand1 as BasicBotTradingCommand1;
+use App\Console\Commands\TradingCommandOne;
+use App\Console\Commands\TradingCommandFive;
 use App\Console\Commands\DynamicBasicBot\TradingCommand1 as DynamicBasicBotTradingCommand1;
 use App\Console\Commands\DynamicBollingerBot\TradingCommand1 as DynamicBollingerBotTradingCommand1;
 use App\Console\Commands\SaveBasicBot\TradingCommand1 as SaveBasicBotTradingCommand1;
@@ -22,25 +23,30 @@ class Kernel extends ConsoleKernel
      */
     protected $commands = [
         ImportCsvData::class,
-        TradingCommandExample::class,
+//        TradingCommandExample::class,
+//
+//        // BasicBot
+//        BasicBotTradingCommand1::class,
+//
+//        DynamicBasicBotTradingCommand1::class,
+//
+//
+//        DynamicBollingerBotTradingCommand1::class,
+//
+//        // SaveBasicBot
+//        SaveBasicBotTradingCommand1::class,
+//
+//        // OptimizedBot
+//        OptimizedBotTradingCommand1::class,
+//
+//        // DynamicBot
+//        DynamicBotTradingCommand1::class,
 
-        // BasicBot
-        BasicBotTradingCommand1::class,
-
-        DynamicBasicBotTradingCommand1::class,
 
 
-        DynamicBollingerBotTradingCommand1::class,
 
-        // SaveBasicBot
-        SaveBasicBotTradingCommand1::class,
-
-        // OptimizedBot
-        OptimizedBotTradingCommand1::class,
-
-        // DynamicBot
-        DynamicBotTradingCommand1::class,
-
+        TradingCommandOne::class,
+        TradingCommandFive::class,
     ];
 
     /**
