@@ -16,3 +16,13 @@
 $router->get('/', function () use ($router) {
     return $router->app->version();
 });
+
+//$router->post('/' . env('TELEGRAM_BOT_TOKEN') . '/webhook', function () {
+//    $update = \Telegram\Bot\Laravel\Facades\Telegram::commandsHandler(true);
+//
+//    // Commands handler method returns an Update object.
+//    // So you can further process $update object
+//    // to however you want.
+//
+//    return 'ok';
+//});

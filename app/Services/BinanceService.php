@@ -2,13 +2,21 @@
 
 namespace App\Services;
 
-use GuzzleHttp\Client;
+use Lin\Binance\BinanceFuture;
 
 class BinanceService
 {
     public $candles;
+    public $balance;
 
     public $tax = 0.0004;
+
+    public $binanceFutures;
+
+    public function __construct()
+    {
+        $this->binanceFutures = new BinanceFuture(env('BINANCE_API_KEY'), env('BINANCE_SECRET_KEY'));
+    }
 
     /**
      * Get Candles from Binance
@@ -20,13 +28,54 @@ class BinanceService
      */
     public function getCandles(string $symbol, string $interval): array
     {
-        $client = new Client();
-        $res = $client->request(
-            'GET',
-            'https://api.binance.com/api/v3/klines?symbol=' . $symbol . '&interval=' . $interval
-        );
-        $this->candles = json_decode($res->getBody());
-        return $this->candles;
+        try {
+            $this->candles = $this->binanceFutures->market()->getKlines(['symbol' => 'BTCUSDT', 'interval' => '5m']);
+            return $this->candles;
+        } catch (\Exception $e) {
+            // send error to Errors telegram bot
+            // $error = json_decode($e->getMessage());
+        }
+    }
+
+    /**
+     * Get Balance info
+     *
+     * @return mixed
+     */
+    public function getBalance()
+    {
+        try {
+            $this->balance = $this->binanceFutures->user()->getBalance();
+            return $this->balance;
+        } catch (\Exception $e) {
+            // send error to Errors telegram bot
+            // $error = json_decode($e->getMessage());
+        }
+    }
+
+    public function openPosition(string $symbol, string $type, float $coinQuantity)
+    {
+        try {
+            return $this->binanceFutures->trade()->postOrder([
+                'symbol' => $symbol,
+                'side' => $type,
+                'type' => 'MARKET',
+                'quantity' => $coinQuantity,
+            ]);
+        } catch (\Exception $e) {
+            // send error to Errors telegram bot
+            // $error = json_decode($e->getMessage());
+        }
+    }
+
+    public function closePosition(string $symbol)
+    {
+        try {
+            $this->binanceFutures->trade()->deleteAllOpenOrders(['symbol' => $symbol]);
+        } catch (\Exception $e) {
+            // send error to Errors telegram bot
+            // $error = json_decode($e->getMessage());
+        }
     }
 
     /**
@@ -132,25 +181,5 @@ class BinanceService
             'buyCount' => 0,
             'status' => '[' . $type . '] Close position'
         ];
-    }
-
-    public function openPosition()
-    {
-
-    }
-
-    public function closePosition()
-    {
-
-    }
-
-    public function getCurrentPrice()
-    {
-
-    }
-
-    public function getPocketValue()
-    {
-
     }
 }

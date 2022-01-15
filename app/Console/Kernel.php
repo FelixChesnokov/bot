@@ -3,6 +3,7 @@
 namespace App\Console;
 
 use App\Console\Commands\ImportCsvData;
+use App\Console\Commands\SetTelegramWebhookCommand;
 use App\Console\Commands\TradingCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Laravel\Lumen\Console\Kernel as ConsoleKernel;
@@ -18,6 +19,7 @@ class Kernel extends ConsoleKernel
         ImportCsvData::class,
 
         TradingCommand::class,
+        SetTelegramWebhookCommand::class,
     ];
 
     /**

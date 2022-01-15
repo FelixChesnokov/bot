@@ -7,10 +7,11 @@
     "require": {
         "php": "^7.3|^8.0",
         "guzzlehttp/guzzle": "^7.4",
+        "irazasyed/telegram-bot-sdk": "^3.4",
         "laravel/lumen-framework": "^8.0",
+        "linwj/binance": "^2.2",
         "lupecode/php-trader-native": "^1.2",
-        "php-ai/php-ml": "^0.9.0",
-        "romulodl/ema": "^3.0"
+        "php-ai/php-ml": "^0.9.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",

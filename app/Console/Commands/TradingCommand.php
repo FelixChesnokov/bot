@@ -6,7 +6,9 @@ use App\Services\BinanceService;
 use App\Services\TelegramService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Lin\Binance\BinanceFuture;
 use LupeCode\phpTraderNative\Trader;
+use Telegram\Bot\Api;
 
 class TradingCommand extends Command
 {
@@ -203,7 +205,7 @@ class TradingCommand extends Command
             "\nMoney: " . $this->money .
             "\nCoins: " . $this->coins . ' ' . $this->symbol;
 
-        TelegramService::sendMessage($this->period, $text);
+        (new TelegramService())->sendMessage($text);
     }
 
     public function writeToFile(float $price): void
